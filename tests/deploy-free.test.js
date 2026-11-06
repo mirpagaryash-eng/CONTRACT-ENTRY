@@ -35,6 +35,26 @@ test('free deployment preflight rejects malformed settings without revealing the
   }
 });
 
+test('deployment normalises copied token wrapping without changing the token itself', () => {
+  for (const value of [`  ${fixture.CLOUDFLARE_API_TOKEN}  `,`Bearer ${fixture.CLOUDFLARE_API_TOKEN}`,`"${fixture.CLOUDFLARE_API_TOKEN}"`,`Bearer '${fixture.CLOUDFLARE_API_TOKEN}'`]) {
+    assert.equal(validateDeploymentEnvironment({...fixture,CLOUDFLARE_API_TOKEN:value}).token,fixture.CLOUDFLARE_API_TOKEN);
+  }
+});
+
+test('Cloudflare header errors give a safe token-specific correction', async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({success:false,errors:[{code:6003,message:'DO_NOT_ECHO_PROVIDER_CONTENT'}]},{status:400});
+  try {
+    await assert.rejects(resolveDeploymentAccount({...validateDeploymentEnvironment(fixture),accountId:null}),error=>{
+      assert.match(error.message,/authentication header \(6003\)/);
+      assert.match(error.message,/CLOUDFLARE_API_TOKEN/);
+      assert.ok(!error.message.includes('DO_NOT_ECHO_PROVIDER_CONTENT'));
+      assert.ok(!error.message.includes(fixture.CLOUDFLARE_API_TOKEN));
+      return true;
+    });
+  } finally { globalThis.fetch = previous; }
+});
+
 test('free deployment preflight makes no external request and prints no credential values', async () => {
   const previousFetch = globalThis.fetch;
   const previousLog = console.log;

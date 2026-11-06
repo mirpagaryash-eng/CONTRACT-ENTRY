@@ -14,6 +14,14 @@ function fail(message, exitCode = 1) {
   throw error;
 }
 
+function tokenValue(value) {
+  let token = value.trim();
+  const unquote = text => text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) ? text.slice(1,-1).trim() : text;
+  token = unquote(token);
+  token = token.replace(/^Bearer\s+/i,'').trim();
+  return unquote(token);
+}
+
 /** Pure preflight: no filesystem access, remote calls, or secret output. */
 export function validateDeploymentEnvironment(env) {
   const required = ['CLOUDFLARE_API_TOKEN', 'ADMIN_INVITE_CODE'];
@@ -21,8 +29,10 @@ export function validateDeploymentEnvironment(env) {
   if (missing.length) fail(`Missing required environment settings: ${missing.join(', ')}. Enter them in secure environment settings; do not send values in chat.`, 2);
   if (env.CLOUDFLARE_ACCOUNT_ID && !/^[0-9a-f]{32}$/i.test(env.CLOUDFLARE_ACCOUNT_ID)) fail('CLOUDFLARE_ACCOUNT_ID must contain exactly 32 hexadecimal characters.', 2);
   if (/[\r\n\0]/.test(env.CLOUDFLARE_API_TOKEN)) fail('CLOUDFLARE_API_TOKEN must be a single-line value.', 2);
+  const token = tokenValue(env.CLOUDFLARE_API_TOKEN);
+  if (!token) fail('CLOUDFLARE_API_TOKEN must contain the token value copied from Cloudflare.',2);
   if (env.ADMIN_INVITE_CODE.trim().length < 16 || /[\r\n\0]/.test(env.ADMIN_INVITE_CODE)) fail('ADMIN_INVITE_CODE must be a single-line private code with at least 16 characters.', 2);
-  return { accountId: env.CLOUDFLARE_ACCOUNT_ID || null, token: env.CLOUDFLARE_API_TOKEN, inviteCode: env.ADMIN_INVITE_CODE };
+  return { accountId: env.CLOUDFLARE_ACCOUNT_ID || null, token, inviteCode: env.ADMIN_INVITE_CODE };
 }
 
 function redact(text, credentials) {
@@ -34,7 +44,7 @@ function redact(text, credentials) {
 function command(commandName, args, { env, credentials, input } = {}) {
   const result = spawnSync(commandName, args, {
     cwd: repositoryRoot,
-    env: { ...env, CI: 'true', WRANGLER_SEND_METRICS: 'false' },
+    env: { ...env, CLOUDFLARE_API_TOKEN: credentials.token, CI: 'true', WRANGLER_SEND_METRICS: 'false' },
     input,
     encoding: 'utf8',
     maxBuffer: 8 * 1024 * 1024,
@@ -66,6 +76,7 @@ async function cloudflareRequest(credentials, path, options = {}, operation = 'C
   try { body = await response.json(); } catch { fail(`${operation} returned an unreadable response (HTTP ${response.status}).`); }
   if (!response.ok || body.success !== true) {
     const codes = Array.isArray(body.errors) ? body.errors.map((error) => Number(error.code)).filter(Number.isFinite) : [];
+    if (codes.includes(6003)) fail('Cloudflare rejected the authentication header (6003). Update repository secret CLOUDFLARE_API_TOKEN with only the token value copied from Cloudflare’s token-created screen. A token name, example command or Global API Key is not the custom API token value. No plan upgrade or billing operation was requested.');
     const error = new Error(`${operation} failed (HTTP ${response.status}${codes.length ? `; Cloudflare codes ${codes.join(', ')}` : ''}). Check account-scoped Workers Scripts Edit, D1 Edit and, if required, Account Settings Read permissions. No plan upgrade or billing operation was requested.`);
     error.exitCode = 1; error.apiCodes = codes; throw error;
   }
