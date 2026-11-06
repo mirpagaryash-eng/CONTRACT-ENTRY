@@ -1,0 +1,88 @@
+name: Deploy free mobile app
+
+# Deployment runs only when the repository owner selects Run workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hisab-cloudflare-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish to Cloudflare Free
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Check private deployment settings
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_INVITE_CODE: ${{ secrets.ADMIN_INVITE_CODE }}
+        run: npm run deploy:free -- --preflight
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build and deploy the app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_INVITE_CODE: ${{ secrets.ADMIN_INVITE_CODE }}
+          HISAB_INITIALIZE_WORKERS_SUBDOMAIN: 'true'
+        run: npm run deploy:free
+
+      - name: Check the public address and show its link
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFile, readFile } from 'node:fs/promises';
+          const deployment = JSON.parse(await readFile('.data/deployment.json', 'utf8'));
+          const baseUrl = deployment.baseUrl;
+          if (typeof baseUrl !== 'string' || !/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(baseUrl)) {
+            throw new Error('Deployment did not return a valid workers.dev address.');
+          }
+          let ready = false;
+          for (let attempt = 0; attempt < 10 && !ready; attempt += 1) {
+            try {
+              const responses = await Promise.all(['/api/health', '/api/session'].map((path) =>
+                fetch(`${baseUrl}${path}`, { redirect: 'error', signal: AbortSignal.timeout(10_000) })
+              ));
+              if (responses.every((response) => response.status === 200)) {
+                const [health, session] = await Promise.all(responses.map((response) => response.json()));
+                ready = health.ok === true && session.authenticated === false && typeof session.setupRequired === 'boolean';
+              }
+            } catch {
+              // A newly published workers.dev address can take a moment to respond.
+            }
+            if (!ready && attempt < 9) await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+          if (!ready) {
+            await appendFile(process.env.GITHUB_STEP_SUMMARY,
+              `The deployment command completed, but HTTPS health/session checks failed. Check [the app address](${baseUrl}) and the deployment logs before entering real records.\n`);
+            throw new Error('The deployed app has not passed its HTTPS health/session checks.');
+          }
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, [
+            `## [Open your app](${baseUrl})`,
+            '',
+            'The public address answered its HTTPS health and sign-in checks.',
+            'For the first visit, enter your private owner setup code (the ADMIN_INVITE_CODE you saved), then choose your own login password. On later visits, sign in.',
+            'Open the address on your phone and check one advance and its private worker page before entering real payroll records.',
+            'WhatsApp messages need your tap on Send in WhatsApp. No worker messages were sent by this deployment.',
+            '',
+          ].join('\n'));
+          console.log(`App address: ${baseUrl}`);
+          NODE

@@ -1,0 +1,14 @@
+.git
+.data
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+test-results
+playwright-report
+*.log
+*.xlsx
+*.xls
+*.csv
