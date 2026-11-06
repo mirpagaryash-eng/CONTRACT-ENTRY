@@ -43,8 +43,10 @@ async function fixture(t, { bindings = {} } = {}) {
   let outboundRequests = 0;
   const mf = new Miniflare(convertV4MiniflareOptions({
     name: 'hisab-test',
-    modules: true,
-    scriptPath: fileURLToPath(new URL('../cloudflare/worker.js', import.meta.url)),
+    modules: [
+      { type: 'ESModule', path: fileURLToPath(new URL('../cloudflare/worker.js', import.meta.url)) },
+      { type: 'ESModule', path: fileURLToPath(new URL('../server/http-api.js', import.meta.url)) },
+    ],
     compatibilityDate: '2026-11-01',
     d1Databases: ['DB'],
     bindings: { ADMIN_INVITE_CODE: inviteCode, ...bindings },

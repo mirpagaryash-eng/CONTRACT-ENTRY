@@ -2,6 +2,12 @@
 
 A shared advance register for a contractor and their workers. The owner records an advance, its date and payment method. Each worker has a private, read-only page that refreshes as entries change. WhatsApp can open a prepared message, or send an approved template automatically when a WhatsApp Business Platform connection is configured.
 
+## Netlify and Supabase deployment
+
+For the alternative without Cloudflare, follow [NETLIFY_SETUP.md](NETLIFY_SETUP.md). Netlify serves the full app and same-origin API; Supabase PostgreSQL stores shared records in a private schema. The first API request initializes the schema automatically. Two private Netlify settings are required: `DATABASE_URL` and `ADMIN_INVITE_CODE`. No browser API keys or manual SQL Editor step is needed. Use each service's Free plan within its allowances; inactive projects or exhausted quotas can interrupt service. This route uses manual WhatsApp messages, which require tapping Send in WhatsApp.
+
+This source includes deployment configuration, not an already published Netlify app. After connecting the accounts, verify the deployed HTTPS health/sign-in endpoints and the owner/worker flow before using real records. Existing SQLite, D1 and browser-preview records are not automatically migrated.
+
 ## Web app with no paid hosting plan
 
 The Cloudflare deployment runs the full app and its shared D1 database on the **Free** plan, using a supplied HTTPS `workers.dev` address. It supports Android and iPhone browsers. See [the deployment instructions](cloudflare/README.md) and [verified Free-plan allowances](cloudflare/FREE_PLAN.md). Keep the account on Free; no billing or upgrade action is part of the deployment helper. Free quotas can stop service when reached, so this is not an unlimited or guaranteed-availability plan.

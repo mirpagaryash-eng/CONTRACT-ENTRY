@@ -7,6 +7,7 @@ preview-dist/
 !.env.example
 !.env.cloudflare.example
 .wrangler/
+.netlify/
 .dev.vars
 .dev.vars.*
 *.log

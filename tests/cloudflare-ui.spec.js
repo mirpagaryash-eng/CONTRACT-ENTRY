@@ -32,8 +32,11 @@ function schemaStatements(source) {
 
 test.beforeAll(async () => {
   mf = new Miniflare(convertV4MiniflareOptions({
-    name: 'hisab-cloudflare-ui', modules: true,
-    scriptPath: fileURLToPath(new URL('../cloudflare/worker.js', import.meta.url)),
+    name: 'hisab-cloudflare-ui',
+    modules: [
+      { type: 'ESModule', path: fileURLToPath(new URL('../cloudflare/worker.js', import.meta.url)) },
+      { type: 'ESModule', path: fileURLToPath(new URL('../server/http-api.js', import.meta.url)) },
+    ],
     compatibilityDate: '2026-11-01', d1Databases: ['DB'],
     bindings: { ADMIN_INVITE_CODE: inviteCode },
     outboundService: () => { outboundRequests++; return new Response('External messaging is disabled in UI tests.', { status: 502 }); },
