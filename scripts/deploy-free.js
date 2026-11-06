@@ -187,7 +187,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       // API response bodies and subprocess arguments may contain secrets. Only
       // our own diagnostic messages are surfaced; never print stack traces.
       const credentials = { token: process.env.CLOUDFLARE_API_TOKEN || '\0', inviteCode: process.env.ADMIN_INVITE_CODE || '\0' };
-      console.error(redact(error instanceof SyntaxError ? 'wrangler.jsonc must remain valid JSON for this deployment helper.' : error.message || 'Deployment failed.', credentials));
+      const message = redact(error instanceof SyntaxError ? 'wrangler.jsonc must remain valid JSON for this deployment helper.' : error.message || 'Deployment failed.', credentials);
+      if (process.env.GITHUB_ACTIONS === 'true') {
+        const escaped = message.replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
+        console.error(`::error title=Deployment settings or access::${escaped}`);
+      } else console.error(message);
       process.exitCode = error.exitCode || 1;
     }
   }

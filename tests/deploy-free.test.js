@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { accountSubdomain, deployFree, resolveDeploymentAccount, validateDeploymentEnvironment } from '../scripts/deploy-free.js';
 
 const fixture = { CLOUDFLARE_API_TOKEN:'test-only-token', CLOUDFLARE_ACCOUNT_ID:'a'.repeat(32), ADMIN_INVITE_CODE:'test-only-private-setup-code' };
+
+test('GitHub failure annotations name missing settings without printing private values', () => {
+  const result = spawnSync(process.execPath,['scripts/deploy-free.js','--preflight'],{
+    cwd:new URL('..',import.meta.url), encoding:'utf8',
+    env:{...process.env,GITHUB_ACTIONS:'true',CLOUDFLARE_API_TOKEN:fixture.CLOUDFLARE_API_TOKEN,CLOUDFLARE_ACCOUNT_ID:'',ADMIN_INVITE_CODE:''},
+  });
+  assert.equal(result.status,2);
+  assert.match(result.stderr,/::error title=Deployment settings or access::Missing required environment settings: ADMIN_INVITE_CODE/);
+  assert.ok(!result.stderr.includes(fixture.CLOUDFLARE_API_TOKEN));
+});
 
 test('free deployment refuses missing settings before any network call', async () => {
   const previous = globalThis.fetch;
