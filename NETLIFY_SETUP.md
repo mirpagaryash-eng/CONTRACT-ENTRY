@@ -20,7 +20,7 @@ Use the shared pooler address ending in `.pooler.supabase.com` on port `6543`. C
 3. Select branch **main**. The repository's `netlify.toml` supplies the build and routing settings: build command `npm run build`, publish directory `dist`, and the API functions directory.
 4. Before deploying, add these private environment settings:
 
-   | Name | Value |
+   | Private setting | Supply your own value as described below |
    | --- | --- |
    | `DATABASE_URL` | The complete Transaction pooler URI from step 1, including the real database password. |
    | `ADMIN_INVITE_CODE` | A new private setup code with at least 16 characters. Keep it for the owner's first visit. |
@@ -49,6 +49,10 @@ Share each worker's own private link only with that worker. Anyone holding that 
 - **Database not connected:** confirm `DATABASE_URL` is the full shared Transaction pooler URI, the password placeholder has been replaced, and the Supabase project is running. Redeploy after correcting settings. Do not post that URI in screenshots or logs.
 - **Owner setup blocked:** confirm `ADMIN_INVITE_CODE` has at least 16 characters and enter the same code in the app. Only one owner account can be registered.
 - **Previously working database stopped:** check Supabase for a paused project or usage restriction, and check both services' usage dashboards.
+
+Startup failures show a safe diagnostic code without exposing the connection URI or driver error. `DB_AUTH` identifies rejected database credentials; `DB_ENDPOINT` identifies a rejected Supabase tenant/user; `DB_DNS`, `DB_NETWORK` and `DB_TIMEOUT` identify connection failures. `DB_PERMISSION`, `DB_SCHEMA_FILE` and `DB_SCHEMA` identify initialization problems. Share the diagnostic code, never passwords or the complete connection URI.
+
+For `DB_TLS`, use Supabase's **Database → Settings** certificate download. Add the public PEM certificate as an optional Netlify environment variable named `DATABASE_CA_CERT`, then redeploy. The value can contain real line breaks or literal `\n` escapes. Existing trusted roots remain trusted, and certificate/hostname verification remains enabled. This setting accepts public certificates only, never private keys. See [Supabase SSL guidance](https://supabase.com/docs/guides/platform/ssl-enforcement). A certificate setting cannot repair an incorrect password or hostname.
 
 Export records regularly and keep a database backup outside these accounts. The app's CSV contains advance records; it is not a complete account-and-history database backup. Existing browser-preview, SQLite or Cloudflare D1 records are not automatically imported into this new database.
 

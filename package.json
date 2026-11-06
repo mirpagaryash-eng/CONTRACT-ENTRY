@@ -14,7 +14,7 @@
     "test": "node --test tests/*.test.js",
     "test:ui": "playwright test tests/ui.spec.js --workers=1",
     "test:cloudflare-ui": "playwright test tests/cloudflare-ui.spec.js --workers=1",
-    "test:netlify": "node --test --test-isolation=none tests/netlify-config.test.js tests/postgres-store.test.js tests/postgres-api.test.js",
+    "test:netlify": "node --test --test-isolation=none tests/netlify-config.test.js tests/netlify-diagnostics.test.js tests/postgres-store.test.js tests/postgres-api.test.js",
     "test:netlify-ui": "playwright test tests/netlify-ui.spec.js --workers=1",
     "test:preview": "playwright test tests/preview.spec.js tests/preview-mobile.spec.js --workers=1",
     "whatsapp:check": "node --use-env-proxy --env-file-if-exists=.env scripts/check-whatsapp.js",
